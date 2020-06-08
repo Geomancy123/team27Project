@@ -1,0 +1,59 @@
+#include "robot.hpp"
+#include <iostream>
+using namespace std;
+double startSpeed = 20;															//initial speed of robot
+double vLeft = startSpeed;														//speed of left and right wheels
+double vRight = startSpeed;
+
+double error(){																	//Finds the error margin
+    OpenPPMFile("cam.ppm",cameraView);											//opens the image just taken, to inspect for the white line
+    SavePPMFile("current.ppm",cameraView);
+    double average = 0.0;
+    int number = 0;
+    for(int i = 0;i<cameraView.width;i++){										//checks each pixel in camera width for white
+        int red = get_pixel(cameraView,cameraView.height*9.0/10.0,i,0);
+        int green = get_pixel(cameraView,cameraView.height*9.0/10.0,i,1);
+        int blue = get_pixel(cameraView,cameraView.height*9.0/10.0,i,2);
+        if(red >235 and green >235 and blue >235){								//white line is present
+            cout<<"white detected"<<endl;
+            number++;
+            average+=i;
+        }
+        
+    }
+    if(number != 0){															//transforms average into error value
+		average = average*1.0/number;
+		average = average-(cameraView.width/2.0);}
+    return(average);
+} 
+
+void followLine(){																//Follows the white line using the error margin
+    double margin = error();
+    cout<<"error = "<<margin<<endl;
+    if(margin > 0){																
+        vLeft = startSpeed + startSpeed/10.0*margin;							//turns right
+        vRight = startSpeed;
+    }else{
+        vLeft = startSpeed;														//turns left
+        vRight = startSpeed - startSpeed/10.0*margin;
+    }
+}
+
+int main(){																		//main program		
+    if (initClientRobot() !=0){
+        std::cout<<" Error initializing robot"<<std::endl;
+    }
+    takePicture();
+    SavePPMFile("i0.ppm",cameraView);
+    while(1){																	//infinite loop; robot never stops
+		takePicture();
+		SavePPMFile("cam.ppm",cameraView);										//replaces current image
+        followLine();															//calls followLine using new image
+        
+        cout<<"Left = "<<vLeft<<"Right = "<<vRight<<endl;
+        setMotors(vLeft,vRight);   
+        std::cout<<" vLeft="<<vLeft<<"  vRight="<<vRight<<std::endl;
+		usleep(10000);
+  } 
+
+}
